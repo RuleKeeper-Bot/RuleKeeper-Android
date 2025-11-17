@@ -42,6 +42,17 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
+      - name: Verify signing configuration
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "Keystore file size: $(stat -c%s keystore.jks) bytes"
+          echo "Key alias length: ${#KEY_ALIAS}"
+          if [ -z "$KEY_ALIAS" ]; then
+            echo "ERROR: KEY_ALIAS is empty!"
+            exit 1
+          fi
+
       - name: Build signed release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
