@@ -1,0 +1,120 @@
+name: Build and Release Android APK
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: 
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read version from version.txt
+        id: version
+        run: echo "VERSION=$(cat version.txt | tr -d '\n')" >> $GITHUB_OUTPUT
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=../keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+
+      - name: Rename APK
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/rulekeeper-dashboard-v${{ steps.version.outputs.VERSION }}.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rulekeeper-android-apk
+          path: app/build/outputs/apk/release/rulekeeper-dashboard-v${{ steps.version.outputs.VERSION }}.apk
+
+  release:
+    needs: build-apk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read version from version.txt
+        id: version
+        run: echo "VERSION=$(cat version.txt | tr -d '\n')" >> $GITHUB_OUTPUT
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rulekeeper-android-apk
+          path: ./artifacts
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: RuleKeeper Android Dashboard v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## RuleKeeper Android Dashboard v${{ steps.version.outputs.VERSION }}
+            
+            Mobile companion app for managing your RuleKeeper Discord bot on the go.
+            
+            ### Installation
+            
+            1. Download the APK file below
+            2. On your Android device, allow installation from unknown sources
+            3. Open the APK and tap Install
+            4. Launch the app and configure your API URL
+            
+            ### Features
+            
+            - **Full Feature Parity** with web dashboard
+            - **Discord OAuth** login with deep link support
+            - **30+ Management Screens** for all bot features
+            - **Material Design 3** with dark/light themes
+            - **Real-time Control** for servers and moderation
+            
+            ### Requirements
+            
+            - Android 7.0 (API 24) or higher
+            - Active RuleKeeper bot instance with REST API
+            
+            ### Documentation
+            
+            See the [Installation Guide](https://github.com/RuleKeeper-Bot/RuleKeeper-Bot/blob/main/rulekeeper-docs/docs/Installation/Android.md) for detailed setup instructions.
+            
+            ### Security
+            
+            This APK is signed with our official release certificate. The signature ensures:
+            - Authentic RuleKeeper distribution
+            - Proper OAuth deep link association
+            - Secure app updates
+          files: |
+            artifacts/rulekeeper-dashboard-v${{ steps.version.outputs.VERSION }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
