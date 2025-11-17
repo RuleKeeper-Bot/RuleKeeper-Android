@@ -11,7 +11,6 @@ on:
 
 jobs:
   build-apk:
-  build-apk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
