@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme -->
+    <style name="Base.Theme.RuleKeeper" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Customize your light theme here -->
+    </style>
+
+    <style name="Theme.RuleKeeper" parent="Base.Theme.RuleKeeper" />
+    
+    <style name="Theme.RuleKeeperDashboard" parent="Base.Theme.RuleKeeper" />
+    
+    <!-- Splash Screen Theme -->
+    <style name="Theme.RuleKeeper.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="windowSplashScreenAnimationDuration">300</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.RuleKeeperDashboard</item>
+    </style>
+</resources>

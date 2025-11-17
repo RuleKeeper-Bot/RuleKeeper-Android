@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night theme for the app -->
+    <style name="Base.Theme.RuleKeeper" parent="android:Theme.Material.NoActionBar">
+        <!-- Customize your dark theme here -->
+    </style>
+</resources>
