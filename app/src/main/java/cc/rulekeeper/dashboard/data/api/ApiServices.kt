@@ -442,17 +442,10 @@ interface RoleService {
         @Body request: Map<String, Any>
     ): Response<Map<String, Any>>
     
-    @PUT("roles/{guild_id}/auto-roles/{auto_role_id}")
-    suspend fun updateAutoRole(
-        @Path("guild_id") guildId: String,
-        @Path("auto_role_id") autoRoleId: Int,
-        @Body request: Map<String, Any>
-    ): Response<Map<String, Any>>
-    
-    @DELETE("roles/{guild_id}/auto-roles/{auto_role_id}")
+    @DELETE("roles/{guild_id}/auto-roles/{role_id}")
     suspend fun deleteAutoRole(
         @Path("guild_id") guildId: String,
-        @Path("auto_role_id") autoRoleId: Int
+        @Path("role_id") roleId: String
     ): Response<Map<String, Any>>
     
     @GET("roles/{guild_id}/game-roles")

@@ -32,7 +32,6 @@ fun AutoRolesScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var roleToDelete by remember { mutableStateOf<Map<String, Any>?>(null) }
-    var roleToEdit by remember { mutableStateOf<Map<String, Any>?>(null) }
     
     val loadAutoRoles: suspend () -> Unit = {
         try {
@@ -81,7 +80,7 @@ fun AutoRolesScreen(
                         val apiClient = ApiClient.getInstance(apiBaseUrl) {
                             settingsRepository.getCachedAccessToken()
                         }
-                        val roleId = (roleToDelete!!["id"] as? Number)?.toInt() ?: return@launch
+                        val roleId = roleToDelete!!["role_id"]?.toString() ?: return@launch
                         val response = apiClient.roleService.deleteAutoRole(guildId, roleId)
                         if (response.isSuccessful) {
                             successMessage = "Auto role removed successfully"
@@ -103,47 +102,12 @@ fun AutoRolesScreen(
         )
     }
     
-    // Edit dialog
-    if (roleToEdit != null) {
-        EditAutoRoleDialog(
-            currentAutoRole = roleToEdit!!,
-            availableRoles = availableRoles,
-            onDismiss = { roleToEdit = null },
-            onConfirm = { roleId, triggerType ->
-                scope.launch {
-                    try {
-                        val apiBaseUrl = settingsRepository.apiBaseUrl.first()
-                        val apiClient = ApiClient.getInstance(apiBaseUrl) {
-                            settingsRepository.getCachedAccessToken()
-                        }
-                        val autoRoleId = (roleToEdit!!["id"] as? Number)?.toInt() ?: return@launch
-                        val request = mapOf(
-                            "role_id" to roleId,
-                            "trigger_type" to triggerType
-                        )
-                        val response = apiClient.roleService.updateAutoRole(guildId, autoRoleId, request)
-                        if (response.isSuccessful) {
-                            successMessage = "Auto role updated successfully"
-                            loadAutoRoles()
-                        } else {
-                            errorMessage = "Failed to update auto role"
-                        }
-                    } catch (e: Exception) {
-                        errorMessage = e.message
-                    } finally {
-                        roleToEdit = null
-                    }
-                }
-            }
-        )
-    }
-    
     // Add dialog
     if (showAddDialog) {
         AddAutoRoleDialog(
             availableRoles = availableRoles,
             onDismiss = { showAddDialog = false },
-            onConfirm = { roleId, triggerType ->
+            onConfirm = { roleId, _ ->
                 scope.launch {
                     try {
                         val apiBaseUrl = settingsRepository.apiBaseUrl.first()
@@ -151,8 +115,7 @@ fun AutoRolesScreen(
                             settingsRepository.getCachedAccessToken()
                         }
                         val request = mapOf(
-                            "role_id" to roleId,
-                            "trigger_type" to triggerType
+                            "role_id" to roleId
                         )
                         val response = apiClient.roleService.createAutoRole(guildId, request)
                         if (response.isSuccessful) {
@@ -329,7 +292,6 @@ fun AutoRolesScreen(
                     AutoRoleCard(
                         autoRole = autoRole,
                         availableRoles = availableRoles,
-                        onEdit = { roleToEdit = autoRole },
                         onDelete = { roleToDelete = autoRole }
                     )
                 }
@@ -342,12 +304,10 @@ fun AutoRolesScreen(
 fun AutoRoleCard(
     autoRole: Map<String, Any>,
     availableRoles: List<Pair<String, String>>,
-    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val roleId = autoRole["role_id"]?.toString() ?: ""
     val roleName = availableRoles.find { it.first == roleId }?.second ?: "Unknown Role"
-    val triggerType = autoRole["trigger_type"]?.toString() ?: "on_join"
     
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -368,7 +328,7 @@ fun AutoRoleCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        "Trigger: ${triggerType.replace("_", " ").capitalize()}",
+                        "Auto-assigned on member join",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -389,17 +349,8 @@ fun AutoRoleCard(
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.End
             ) {
-                TextButton(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Edit")
-                }
-                
                 TextButton(
                     onClick = onDelete,
                     colors = ButtonDefaults.textButtonColors(
@@ -423,7 +374,6 @@ fun AddAutoRoleDialog(
     onConfirm: (String, String) -> Unit
 ) {
     var selectedRoleId by remember { mutableStateOf("") }
-    var triggerType by remember { mutableStateOf("on_join") }
     var expanded by remember { mutableStateOf(false) }
     
     AlertDialog(
@@ -462,112 +412,19 @@ fun AddAutoRoleDialog(
                     }
                 }
                 
-                Text("Trigger Type:", style = MaterialTheme.typography.bodyMedium)
-                
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = triggerType == "on_join",
-                        onClick = { triggerType = "on_join" },
-                        label = { Text("On Join") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    FilterChip(
-                        selected = triggerType == "on_verify",
-                        onClick = { triggerType = "on_verify" },
-                        label = { Text("On Verify") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                Text(
+                    "This role will be automatically assigned when a new member joins the server.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(selectedRoleId, triggerType) },
+                onClick = { onConfirm(selectedRoleId, "") },
                 enabled = selectedRoleId.isNotBlank()
             ) {
                 Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditAutoRoleDialog(
-    currentAutoRole: Map<String, Any>,
-    availableRoles: List<Pair<String, String>>,
-    onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
-) {
-    var selectedRoleId by remember { mutableStateOf(currentAutoRole["role_id"]?.toString() ?: "") }
-    var triggerType by remember { mutableStateOf(currentAutoRole["trigger_type"]?.toString() ?: "on_join") }
-    var expanded by remember { mutableStateOf(false) }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Auto Role") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Role selector
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = availableRoles.find { it.first == selectedRoleId }?.second ?: "Select a role",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Role") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        availableRoles.forEach { (roleId, roleName) ->
-                            DropdownMenuItem(
-                                text = { Text(roleName) },
-                                onClick = {
-                                    selectedRoleId = roleId
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                Text("Trigger Type:", style = MaterialTheme.typography.bodyMedium)
-                
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = triggerType == "on_join",
-                        onClick = { triggerType = "on_join" },
-                        label = { Text("On Join") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    FilterChip(
-                        selected = triggerType == "on_verify",
-                        onClick = { triggerType = "on_verify" },
-                        label = { Text("On Verify") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(selectedRoleId, triggerType) },
-                enabled = selectedRoleId.isNotBlank()
-            ) {
-                Text("Save")
             }
         },
         dismissButton = {
