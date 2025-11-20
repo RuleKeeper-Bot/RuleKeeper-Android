@@ -439,7 +439,7 @@ interface RoleService {
     @POST("roles/{guild_id}/auto-roles")
     suspend fun createAutoRole(
         @Path("guild_id") guildId: String,
-        @Body request: Map<String, Any>
+        @Body request: Map<String, @JvmSuppressWildcards Any>
     ): Response<Map<String, Any>>
     
     @DELETE("roles/{guild_id}/auto-roles/{role_id}")
@@ -766,4 +766,5 @@ interface SettingsService {
     @POST("admin/api/users/{user_id}/disable-mfa")
     suspend fun disableAdminUserMfa(@Path("user_id") userId: String): Response<Map<String, Any>>
 }
+
 
